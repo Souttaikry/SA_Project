@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — StockLedger</title>
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><img src="image/logo.png" alt="StockLedger Logo"></div>
+  <div class="topbar-right">
+    <span class="user-chip">Signed in as <strong id="userName"></strong></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Log out</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="stat-row">
+    <div class="stat-card clickable" onclick="openRevenueModal()">
+      <div class="label">Revenue today</div>
+      <div class="value" id="statRevenue">—</div>
+      <div class="hint">Click for breakdown</div>
+    </div>
+    <div class="stat-card clickable" onclick="openOrdersModal()">
+      <div class="label">Orders today</div>
+      <div class="value" id="statOrders">—</div>
+      <div class="hint">Click to see orders</div>
+    </div>
+    <div class="stat-card clickable" onclick="openUnitsModal()">
+      <div class="label">Units sold today</div>
+      <div class="value" id="statUnits">—</div>
+      <div class="hint">Click for top products</div>
+    </div>
+    <div class="stat-card clickable" id="statLowCard" onclick="openStockModal()">
+      <div class="label">Low / out of stock</div>
+      <div class="value" id="statLow">—</div>
+      <div class="hint">Click to see which products</div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Inventory</h2>
+    <button class="btn btn-primary" style="width:auto" onclick="openProductModal()">+ Add product</button>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Product</th><th>SKU</th><th>Category</th><th>Price</th><th>Stock</th><th></th></tr>
+      </thead>
+      <tbody id="productRows"></tbody>
+    </table>
+    <div id="productEmpty" class="empty-state" style="display:none;">No products yet — add your first one above.</div>
+  </div>
+
+  <div class="section-head">
+    <h2>Recent sales</h2>
+  </div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr>
+      </thead>
+      <tbody id="saleRows"></tbody>
+    </table>
+    <div id="saleEmpty" class="empty-state" style="display:none;">No sales recorded yet.</div>
+  </div>
+
+</div>
+
+<!-- Add / edit product modal -->
+<div class="modal-backdrop" id="productModal">
+  <div class="modal">
+    <button type="button" class="modal-close" onclick="closeProductModal()">✕</button>
+    <h3 id="modalTitle">Add product</h3>
+    <div id="modalAlert" class="alert alert-error"></div>
+    <form id="productForm">
+      <input type="hidden" id="productId" />
+      <div class="field"><label>Name</label><input type="text" id="pName" required /></div>
+      <div class="field"><label>SKU</label><input type="text" id="pSku" required placeholder="e.g. SKU-1001" /></div>
+      <div class="field"><label>Category</label><input type="text" id="pCategory" placeholder="General" /></div>
+      <div class="field"><label>Price</label><input type="number" id="pPrice" step="0.01" min="0" required /></div>
+      <div class="field"><label>Stock quantity</label><input type="number" id="pStock" min="0" required /></div>
+      <div class="field"><label>Low stock alert threshold</label><input type="number" id="pThreshold" min="0" value="5" /></div>
+      <div class="field"><label>Description</label><textarea id="pDescription" rows="3"></textarea></div>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-ghost" onclick="closeProductModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Low / out of stock report modal -->
+<div class="modal-backdrop" id="stockModal">
+  <div class="modal modal-wide">
+    <button type="button" class="modal-close" onclick="closeStockModal()">✕</button>
+    <h3>Low &amp; out of stock</h3>
+    <p class="modal-sub">Products at or below their alert threshold, sorted by most urgent first.</p>
+
+    <div class="stock-tabs">
+      <button type="button" class="stock-tab active" data-filter="all" onclick="setStockFilter('all')">All <span class="count" id="countAll">0</span></button>
+      <button type="button" class="stock-tab" data-filter="out" onclick="setStockFilter('out')">Out of stock <span class="count" id="countOut">0</span></button>
+      <button type="button" class="stock-tab" data-filter="low" onclick="setStockFilter('low')">Low stock <span class="count" id="countLow">0</span></button>
+    </div>
+
+    <div class="stock-list" id="stockList"></div>
+    <div class="stock-empty" id="stockEmpty" style="display:none;">Nothing here — every product is above its threshold.</div>
+  </div>
+</div>
+
+<!-- Revenue breakdown modal -->
+<div class="modal-backdrop" id="revenueModal">
+  <div class="modal">
+    <button type="button" class="modal-close" onclick="closeModal('revenueModal')">✕</button>
+    <h3>Revenue today</h3>
+    <p class="modal-sub">Broken down by payment method.</p>
+    <div class="detail-total" id="revenueTotal">$0.00</div>
+    <div id="revenueBreakdown"></div>
+    <div class="stock-empty" id="revenueEmpty" style="display:none;">No sales recorded yet today.</div>
+  </div>
+</div>
+
+<!-- Orders today modal -->
+<div class="modal-backdrop" id="ordersModal">
+  <div class="modal modal-wide">
+    <button type="button" class="modal-close" onclick="closeModal('ordersModal')">✕</button>
+    <h3>Orders today</h3>
+    <p class="modal-sub" id="ordersSub">0 orders placed.</p>
+    <div class="stock-list" id="ordersList"></div>
+    <div class="stock-empty" id="ordersEmpty" style="display:none;">No orders placed yet today.</div>
+  </div>
+</div>
+
+<!-- Units sold today modal -->
+<div class="modal-backdrop" id="unitsModal">
+  <div class="modal">
+    <button type="button" class="modal-close" onclick="closeModal('unitsModal')">✕</button>
+    <h3>Units sold today</h3>
+    <p class="modal-sub" id="unitsSub">0 units across 0 products.</p>
+    <div class="stock-list" id="unitsList"></div>
+    <div class="stock-empty" id="unitsEmpty" style="display:none;">No units sold yet today.</div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>
